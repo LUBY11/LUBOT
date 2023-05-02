@@ -1,0 +1,115 @@
+import discord
+import asyncio
+
+client = discord.Client(intents=discord.Intents.all())
+
+@client.event
+async def on_ready():
+    guild = client.guilds[0]
+    category_name = "Server Stats"
+    category = discord.utils.get(guild.categories, name=category_name)
+    if category is None:
+        category = await guild.create_category(category_name)
+
+    online_members_channel_name = "🟢 Online Members"
+    online_members_channel = discord.utils.get(guild.voice_channels, name=online_members_channel_name)
+    if online_members_channel is None:
+        online_members_channel = await guild.create_voice_channel(online_members_channel_name, category=category)
+
+    online_bots_channel_name = "🤖 Online Bots"
+    online_bots_channel = discord.utils.get(guild.voice_channels, name=online_bots_channel_name)
+    if online_bots_channel is None:
+        online_bots_channel = await guild.create_voice_channel(online_bots_channel_name, category=category)
+
+    total_members_channel_name = "👥 Total Members"
+    total_members_channel = discord.utils.get(guild.voice_channels, name=total_members_channel_name)
+    if total_members_channel is None:
+        total_members_channel = await guild.create_voice_channel(total_members_channel_name, category=category)
+
+    # 맴버, 봇, 전체 맴버 채널의 다른 사람들의 음성권한을 없앰
+    for channel in [online_members_channel, online_bots_channel, total_members_channel]:
+        for member in guild.members:
+            await channel.set_permissions(member, connect=False)
+
+    for member in guild.members:
+        await member.edit(voice_channel=None)
+
+    async def update_member_count():
+        await client.wait_until_ready()
+        guild = client.guilds[0]
+
+        online_members_channel = discord.utils.get(guild.voice_channels, name="🟢 Online Members")
+        online_bots_channel = discord.utils.get(guild.voice_channels, name="🤖 Online Bots")
+        total_members_channel = discord.utils.get(guild.voice_channels, name="👥 Total Members")
+
+        while True:
+            online_members = len([m for m in guild.members if m.status != discord.Status.offline and not m.bot])
+            online_bots = len([m for m in guild.members if m.status != discord.Status.offline and m.bot])
+            total_members = guild.member_count
+
+            if not online_members_channel.name.endswith(f"{online_members + online_bots}"):
+                await online_members_channel.edit(name=f"🟢 Online Members: {online_members + online_bots}")
+            if not online_bots_channel.name.endswith(f"{online_bots}"):
+                await online_bots_channel.edit(name=f"🤖 Online Bots: {online_bots}")
+            if not total_members_channel.name.endswith(f"{total_members}"):
+                await total_members_channel.edit(name=f"👥 Total Members: {total_members}")
+
+            await asyncio.sleep(10)
+
+    client.loop.create_task(update_member_count())
+
+@client.event
+async def on_ready():
+    print("Logged in as {0.user}".format(client))
+
+@client.event
+async def on_ready():
+    print("Logged in as {0.user}".format(client))
+
+@client.event
+async def on_message(message):
+    # 메시지를 받을 채널 ID
+    receive_channel_id = 1102690275064807444
+
+    # 보내는 메시지의 조건: 같은 서버에서 지정된 채널에서 작성됨
+    if message.guild and message.channel.id == 1102744888845533277:
+        # 받는 채널 찾기
+        receive_channel = client.get_channel(receive_channel_id)
+
+        # Embed 메시지 만들기
+        embed = discord.Embed(title="Rules", description=message.content, color=0x00ff00)
+        embed.set_author(name=message.author.display_name, icon_url=message.author.avatar.url)
+
+        # Embed 메시지를 받는 채널로 전송
+        await receive_channel.send(embed=embed)
+    
+    # 봇이 받아들일 명령어
+    if message.content.startswith('!send'):
+        # 채팅을 보낼 채널 선택
+        await message.channel.send("어느 채널에 채팅을 보낼까요? (#채널명)")
+        
+        def check(m):
+            return m.author == message.author and m.channel == message.channel
+        
+        # 사용자로부터 채팅 채널 이름 입력 받음
+        msg = await client.wait_for('message', check=check)
+        channel_name = msg.content.strip('#')
+        channel = discord.utils.get(message.guild.channels, name=channel_name)
+        
+        if not channel:
+            await message.channel.send(f"{channel_name} 채널을 찾을 수 없습니다.")
+            return
+        
+        # 채팅을 보낼 내용 입력 받음
+        await message.channel.send("무엇을 보낼까요?")
+        
+        # 사용자로부터 메시지 내용 입력 받음
+        msg = await client.wait_for('message', check=check)
+        
+        # Embed 메시지 만들기
+        embed = discord.Embed(title=" {0.author.display_name}".format(message), description=msg.content, color=0x00ff00)
+        
+        # Embed 메시지를 받는 채널로 전송
+        await channel.send(embed=embed)
+
+client.run("MTEwMjY4Mjg3ODgwODE3NDY5NA.GZh4E3.Q1SHMMCaQCkCtfwtpLN9AmPxfQRsjlEFVKhrQ0")
